@@ -1,22 +1,22 @@
 package io.anuke.mindustry.graphics;
 
-import io.anuke.arc.Core;
-import io.anuke.arc.graphics.Color;
-import io.anuke.arc.graphics.g2d.Draw;
-import io.anuke.arc.graphics.g2d.Lines;
-import io.anuke.arc.math.Mathf;
-import io.anuke.arc.math.geom.Rectangle;
-import io.anuke.arc.math.geom.Vector2;
-import io.anuke.arc.util.Time;
-import io.anuke.arc.util.Tmp;
-import io.anuke.mindustry.Vars;
-import io.anuke.mindustry.content.Blocks;
-import io.anuke.mindustry.entities.Units;
-import io.anuke.mindustry.entities.type.Player;
-import io.anuke.mindustry.game.Team;
-import io.anuke.mindustry.input.InputHandler;
-import io.anuke.mindustry.type.Item;
-import io.anuke.mindustry.world.Tile;
+import io.anuke.arc.*;
+import io.anuke.arc.graphics.*;
+import io.anuke.arc.graphics.g2d.*;
+import io.anuke.arc.math.*;
+import io.anuke.arc.math.geom.*;
+import io.anuke.arc.util.*;
+import io.anuke.mindustry.*;
+import io.anuke.mindustry.content.*;
+import io.anuke.mindustry.entities.*;
+import io.anuke.mindustry.entities.type.*;
+import io.anuke.mindustry.game.*;
+import io.anuke.mindustry.input.*;
+import io.anuke.mindustry.type.Category;
+import io.anuke.mindustry.ui.Cicon;
+import io.anuke.mindustry.world.*;
+import io.anuke.mindustry.world.blocks.units.MechPad;
+import io.anuke.mindustry.world.meta.BlockFlag;
 
 import static io.anuke.mindustry.Vars.*;
 
@@ -29,9 +29,9 @@ public class OverlayRenderer{
     public void drawBottom(){
         InputHandler input = control.input;
 
-        if(!input.isDrawing() || player.isDead()) return;
+        if(player.isDead()) return;
 
-        input.drawOutlined();
+        input.drawBottom();
     }
 
     public void drawTop(){
@@ -60,6 +60,21 @@ public class OverlayRenderer{
                     Draw.reset();
                 }
             });
+
+            if(ui.hudfrag.blockfrag.currentCategory == Category.upgrade){
+                for(Tile mechpad : indexer.getAllied(player.getTeam(), BlockFlag.mechPad)){
+                    if(!(mechpad.block() instanceof MechPad)) continue;
+                    if(!rect.setSize(Core.camera.width * 0.9f, Core.camera.height * 0.9f)
+                            .setCenter(Core.camera.position.x, Core.camera.position.y).contains(mechpad.x, mechpad.y)){
+
+                        Tmp.v1.set(mechpad.worldx(), mechpad.worldy()).sub(Core.camera.position.x, Core.camera.position.y).setLength(indicatorLength);
+
+                        Lines.stroke(2f, ((MechPad) mechpad.block()).mech.engineColor);
+                        Lines.lineAngle(Core.camera.position.x + Tmp.v1.x, Core.camera.position.y + Tmp.v1.y, Tmp.v1.angle(), 0.5f);
+                        Draw.reset();
+                    }
+                }
+            }
         }
 
         if(player.isDead()) return; //dead players don't draw
@@ -112,6 +127,13 @@ public class OverlayRenderer{
 
             if(tile != null && tile.block() != Blocks.air && tile.getTeam() == player.getTeam()){
                 tile.block().drawSelect(tile);
+
+                if(Core.input.keyDown(Binding.rotateplaced) && tile.block().rotate){
+                    control.input.drawArrow(tile.block(), tile.x, tile.y, tile.rotation(), true);
+                    Draw.color(Pal.accent, 0.3f + Mathf.absin(4f, 0.2f));
+                    Fill.square(tile.drawx(), tile.drawy(), tile.block().size * tilesize/2f);
+                    Draw.color();
+                }
             }
         }
 
@@ -119,7 +141,7 @@ public class OverlayRenderer{
         if(input.isDroppingItem()){
             Vector2 v = Core.input.mouseWorld(input.getMouseX(), input.getMouseY());
             float size = 8;
-            Draw.rect(player.item().item.icon(Item.Icon.large), v.x, v.y, size, size);
+            Draw.rect(player.item().item.icon(Cicon.medium), v.x, v.y, size, size);
             Draw.color(Pal.accent);
             Lines.circle(v.x, v.y, 6 + Mathf.absin(Time.time(), 5f, 1f));
             Draw.reset();

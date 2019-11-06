@@ -17,17 +17,18 @@ import io.anuke.arc.scene.ui.ImageButton.*;
 import io.anuke.arc.scene.ui.layout.*;
 import io.anuke.arc.util.*;
 import io.anuke.mindustry.core.GameState.*;
+import io.anuke.mindustry.ctype.UnlockableContent;
 import io.anuke.mindustry.entities.*;
 import io.anuke.mindustry.entities.type.*;
-import io.anuke.mindustry.game.EventType.*;
 import io.anuke.mindustry.game.*;
+import io.anuke.mindustry.game.EventType.*;
 import io.anuke.mindustry.gen.*;
 import io.anuke.mindustry.graphics.*;
 import io.anuke.mindustry.input.*;
 import io.anuke.mindustry.net.Packets.*;
 import io.anuke.mindustry.type.*;
 import io.anuke.mindustry.ui.*;
-import io.anuke.mindustry.ui.Styles;
+import io.anuke.mindustry.ui.Cicon;
 import io.anuke.mindustry.ui.dialogs.*;
 
 import static io.anuke.mindustry.Vars.*;
@@ -39,7 +40,7 @@ public class HudFragment extends Fragment{
     private Table lastUnlockTable;
     private Table lastUnlockLayout;
     private boolean shown = true;
-    private float dsize = 59;
+    private float dsize = 47.2f;
 
     private float coreAttackTime;
     private float lastCoreHP;
@@ -51,6 +52,7 @@ public class HudFragment extends Fragment{
 
         //menu at top left
         parent.fill(cont -> {
+            cont.setName("overlaymarker");
             cont.top().left();
 
             if(mobile){
@@ -63,10 +65,14 @@ public class HudFragment extends Fragment{
 
                     ImageButtonStyle style = Styles.clearTransi;
 
-                    select.addImageButton(Icon.menuLarge, style, ui.paused::show);
-                    flip = select.addImageButton(Icon.arrowUp, style, this::toggleMenus).get();
+                    select.addImageButton(Icon.menuLargeSmall, style, ui.paused::show);
+                    flip = select.addImageButton(Icon.arrowUpSmall, style, this::toggleMenus).get();
 
-                    select.addImageButton(Icon.pause, style, () -> {
+                    select.addImageButton(Icon.pasteSmall, style, () -> {
+                        ui.schematics.show();
+                    });
+
+                    select.addImageButton(Icon.pauseSmall, style, () -> {
                         if(net.active()){
                             ui.listfrag.toggle();
                         }else{
@@ -74,14 +80,14 @@ public class HudFragment extends Fragment{
                         }
                     }).name("pause").update(i -> {
                         if(net.active()){
-                            i.getStyle().imageUp = Icon.players;
+                            i.getStyle().imageUp = Icon.playersSmall;
                         }else{
                             i.setDisabled(false);
-                            i.getStyle().imageUp = state.is(State.paused) ? Icon.play : Icon.pause;
+                            i.getStyle().imageUp = state.is(State.paused) ? Icon.playSmall : Icon.pauseSmall;
                         }
-                    }).get();
+                    });
 
-                    select.addImageButton(Icon.settings, style,() -> {
+                    select.addImageButton(Icon.chatSmall, style,() -> {
                         if(net.active() && mobile){
                             if(ui.chatfrag.chatOpen()){
                                 ui.chatfrag.hide();
@@ -95,11 +101,11 @@ public class HudFragment extends Fragment{
                         }
                     }).update(i -> {
                         if(net.active() && mobile){
-                            i.getStyle().imageUp = Icon.chat;
+                            i.getStyle().imageUp = Icon.chatSmall;
                         }else{
-                            i.getStyle().imageUp = Icon.database;
+                            i.getStyle().imageUp = Icon.databaseSmall;
                         }
-                    }).get();
+                    });
 
                     select.addImage().color(Pal.gray).width(4f).fillY();
 
@@ -112,7 +118,7 @@ public class HudFragment extends Fragment{
                         int fi = index++;
                         parent.addChild(elem);
                         elem.visible(() -> {
-                            if(fi < 4){
+                            if(fi < 5){
                                 elem.setSize(size);
                             }else{
                                 elem.setSize(Scl.scl(4f), size);
@@ -122,7 +128,7 @@ public class HudFragment extends Fragment{
                         });
                     }
 
-                    cont.add().size(dsize * 4 + 3, dsize).left();
+                    cont.add().size(dsize * 5 + 3, dsize).left();
                 }
 
                 cont.row();
@@ -131,7 +137,7 @@ public class HudFragment extends Fragment{
             }
 
             cont.update(() -> {
-                if(!Core.input.keyDown(Binding.gridMode) && Core.input.keyTap(Binding.toggle_menus) && !ui.chatfrag.chatOpen() && !Core.scene.hasDialog() && !(Core.scene.getKeyboardFocus() instanceof TextField)){
+                if(Core.input.keyTap(Binding.toggle_menus) && !ui.chatfrag.chatOpen() && !Core.scene.hasDialog() && !(Core.scene.getKeyboardFocus() instanceof TextField)){
                     toggleMenus();
                 }
             });
@@ -152,7 +158,7 @@ public class HudFragment extends Fragment{
 
                 addWaveTable(waves);
                 addPlayButton(btable);
-                wavesMain.add(stack).width(dsize * 4 + 4f);
+                wavesMain.add(stack).width(dsize * 5 + 4f);
                 wavesMain.row();
                 wavesMain.table(Tex.button, t -> t.margin(10f).add(new Bar("boss.health", Pal.health, () -> state.boss() == null ? 0f : state.boss().healthf()).blink(Color.white))
                 .grow()).fillX().visible(() -> state.rules.waves && state.boss() != null).height(60f).get();
@@ -187,10 +193,10 @@ public class HudFragment extends Fragment{
                             FloatingDialog dialog = new FloatingDialog("$editor.spawn");
                             int i = 0;
                             for(UnitType type : content.<UnitType>getBy(ContentType.unit)){
-                                dialog.cont.addImageButton(Tex.whiteui, 48, () -> {
+                                dialog.cont.addImageButton(Tex.whiteui, 8 * 6f, () -> {
                                     Call.spawnUnitEditor(player, type);
                                     dialog.hide();
-                                }).get().getStyle().imageUp = new TextureRegionDrawable(type.iconRegion);
+                                }).get().getStyle().imageUp = new TextureRegionDrawable(type.icon(Cicon.xlarge));
                                 if(++i % 4 == 0) dialog.cont.row();
                             }
                             dialog.addCloseButton();
@@ -232,7 +238,7 @@ public class HudFragment extends Fragment{
                             }
                         });
                     }
-                }).width(dsize * 4 + 4f);
+                }).width(dsize * 5 + 4f);
                 editorMain.visible(() -> shown && state.isEditor());
             }
 
@@ -248,9 +254,17 @@ public class HudFragment extends Fragment{
                 info.label(() -> ping.get(netClient.getPing())).visible(net::client).left().style(Styles.outlineLabel);
             }).top().left();
         });
-
-        //minimap
-        parent.fill(t -> t.top().right().add(new Minimap()).visible(() -> Core.settings.getBool("minimap") && !state.rules.tutorial));
+        
+        parent.fill(t -> {
+            t.visible(() -> Core.settings.getBool("minimap") && !state.rules.tutorial);
+            //minimap
+            t.add(new Minimap());
+            t.row();
+            //position
+            t.label(() -> world.toTile(player.x) + "," + world.toTile(player.y))
+                .visible(() -> Core.settings.getBool("position") && !state.rules.tutorial);
+            t.top().right();
+        });
 
         //spawner warning
         parent.fill(t -> {
@@ -421,7 +435,7 @@ public class HudFragment extends Fragment{
     public void showUnlock(UnlockableContent content){
         //some content may not have icons... yet
         //also don't play in the tutorial to prevent confusion
-        if(content.getContentIcon() == null || state.is(State.menu) || state.rules.tutorial) return;
+        if(state.is(State.menu) || state.rules.tutorial) return;
 
         Sounds.message.play();
 
@@ -441,10 +455,10 @@ public class HudFragment extends Fragment{
                 Table in = new Table();
 
                 //create texture stack for displaying
-                Image image = new Image(content.getContentIcon());
+                Image image = new Image(content.icon(Cicon.xlarge));
                 image.setScaling(Scaling.fit);
 
-                in.add(image).size(48f).pad(2);
+                in.add(image).size(8 * 6).pad(2);
 
                 //add to table
                 table.add(in).padRight(8);
@@ -495,7 +509,7 @@ public class HudFragment extends Fragment{
             //if there's space, add it
             if(esize < cap){
 
-                Image image = new Image(content.getContentIcon());
+                Image image = new Image(content.icon(Cicon.medium));
                 image.setScaling(Scaling.fit);
 
                 lastUnlockLayout.add(image);
@@ -568,7 +582,7 @@ public class HudFragment extends Fragment{
 
     private void toggleMenus(){
         if(flip != null){
-            flip.getStyle().imageUp = shown ? Icon.arrowDown : Icon.arrowUp;
+            flip.getStyle().imageUp = shown ? Icon.arrowDownSmall : Icon.arrowUpSmall;
         }
 
         shown = !shown;

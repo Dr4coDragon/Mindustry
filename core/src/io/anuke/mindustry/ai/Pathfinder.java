@@ -3,9 +3,10 @@ package io.anuke.mindustry.ai;
 import io.anuke.annotations.Annotations.*;
 import io.anuke.arc.*;
 import io.anuke.arc.collection.*;
-import io.anuke.arc.function.*;
+import io.anuke.arc.func.*;
 import io.anuke.arc.math.geom.*;
 import io.anuke.arc.util.*;
+import io.anuke.arc.util.ArcAnnotate.*;
 import io.anuke.arc.util.async.*;
 import io.anuke.mindustry.game.EventType.*;
 import io.anuke.mindustry.game.*;
@@ -32,7 +33,8 @@ public class Pathfinder implements Runnable{
     /** handles task scheduling on the update thread. */
     private TaskQueue queue = new TaskQueue();
     /** current pathfinding thread */
-    private @Nullable Thread thread;
+    private @Nullable
+    Thread thread;
 
     public Pathfinder(){
         Events.on(WorldLoadEvent.class, event -> {
@@ -50,11 +52,8 @@ public class Pathfinder implements Runnable{
                 }
             }
 
-            //run next frame to try and prevent a crash
-            Core.app.post(() -> {
-                //special preset which may help speed things up; this is optional
-                preloadPath(waveTeam, PathTarget.enemyCores);
-            });
+            //special preset which may help speed things up; this is optional
+            preloadPath(waveTeam, PathTarget.enemyCores);
 
             start();
         });
@@ -95,7 +94,11 @@ public class Pathfinder implements Runnable{
 
         int x = tile.x, y = tile.y;
 
-        tile.getLinkedTiles(t -> tiles[t.x][t.y] = packTile(t));
+        tile.getLinkedTiles(t -> {
+            if(Structs.inBounds(t.x, t.y, tiles)){
+                tiles[t.x][t.y] = packTile(t);
+            }
+        });
 
         //can't iterate through array so use the map, which should not lead to problems
         for(PathData[] arr : pathMap){
@@ -121,19 +124,23 @@ public class Pathfinder implements Runnable{
     public void run(){
         while(true){
             if(net.client()) return;
-
-            queue.run();
-
-            //total update time no longer than maxUpdate
-            for(PathData data : list){
-                updateFrontier(data, maxUpdate / list.size);
-            }
-
             try{
-                Thread.sleep(updateInterval);
-            }catch(InterruptedException e){
-                //stop looping when interrupted externally
-                return;
+
+                queue.run();
+
+                //total update time no longer than maxUpdate
+                for(PathData data : list){
+                    updateFrontier(data, maxUpdate / list.size);
+                }
+
+                try{
+                    Thread.sleep(updateInterval);
+                }catch(InterruptedException e){
+                    //stop looping when interrupted externally
+                    return;
+                }
+            }catch(Exception e){
+                e.printStackTrace();
             }
         }
     }
@@ -310,15 +317,15 @@ public class Pathfinder implements Runnable{
 
         public static final PathTarget[] all = values();
 
-        private final BiConsumer<Team, IntArray> targeter;
+        private final Cons2<Team, IntArray> targeter;
 
-        PathTarget(BiConsumer<Team, IntArray> targeter){
+        PathTarget(Cons2<Team, IntArray> targeter){
             this.targeter = targeter;
         }
 
         /** Get targets. This must run on the main thread.*/
         public IntArray getTargets(Team team, IntArray out){
-            targeter.accept(team, out);
+            targeter.get(team, out);
             return out;
         }
     }

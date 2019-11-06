@@ -6,15 +6,15 @@ import com.codedisaster.steamworks.SteamMatchmaking.*;
 import com.codedisaster.steamworks.SteamNetworking.*;
 import io.anuke.arc.*;
 import io.anuke.arc.collection.*;
-import io.anuke.arc.function.*;
-import io.anuke.arc.input.*;
+import io.anuke.arc.func.*;
 import io.anuke.arc.util.*;
 import io.anuke.arc.util.pooling.*;
+import io.anuke.mindustry.core.GameState.*;
+import io.anuke.mindustry.core.Version;
 import io.anuke.mindustry.game.EventType.*;
-import io.anuke.mindustry.game.Version;
 import io.anuke.mindustry.game.*;
-import io.anuke.mindustry.net.*;
 import io.anuke.mindustry.net.ArcNetImpl.*;
+import io.anuke.mindustry.net.*;
 import io.anuke.mindustry.net.Net.*;
 import io.anuke.mindustry.net.Packets.*;
 
@@ -39,7 +39,7 @@ public class SNet implements SteamNetworkingCallback, SteamMatchmakingCallback, 
     final IntMap<SteamConnection> steamConnections = new IntMap<>(); //maps steam ID -> valid net connection
 
     SteamID currentLobby, currentServer;
-    Consumer<Host> lobbyCallback;
+    Cons<Host> lobbyCallback;
     Runnable lobbyDoneCallback, joinCallback;
 
     public SNet(NetProvider provider){
@@ -64,7 +64,7 @@ public class SNet implements SteamNetworkingCallback, SteamMatchmakingCallback, 
                             try{
                                 //accept users on request
                                 if(con == null){
-                                    con = new SteamConnection(SteamID.createFromNativeHandle(SteamNativeHandle.getNativeHandle(from)));
+                                    con = new SteamConnection(SteamID.createFromNativeHandle(from.handle()));
                                     Connect c = new Connect();
                                     c.addressTCP = "steam:" + from.getAccountID();
 
@@ -164,7 +164,7 @@ public class SNet implements SteamNetworkingCallback, SteamMatchmakingCallback, 
     }
 
     @Override
-    public void discoverServers(Consumer<Host> callback, Runnable done){
+    public void discoverServers(Cons<Host> callback, Runnable done){
         smat.addRequestLobbyListResultCountFilter(32);
         smat.requestLobbyList();
         lobbyCallback = callback;
@@ -172,7 +172,7 @@ public class SNet implements SteamNetworkingCallback, SteamMatchmakingCallback, 
     }
 
     @Override
-    public void pingHost(String address, int port, Consumer<Host> valid, Consumer<Exception> failed){
+    public void pingHost(String address, int port, Cons<Host> valid, Cons<Exception> failed){
         provider.pingHost(address, port, valid, failed);
     }
 
@@ -246,6 +246,13 @@ public class SNet implements SteamNetworkingCallback, SteamMatchmakingCallback, 
             return;
         }
 
+        if(net.active()){
+            net.disconnect();
+            net.closeServer();
+            logic.reset();
+            state.set(State.menu);
+        }
+
         currentLobby = steamIDLobby;
         currentServer = smat.getLobbyOwner(steamIDLobby);
 
@@ -302,26 +309,29 @@ public class SNet implements SteamNetworkingCallback, SteamMatchmakingCallback, 
         Log.info("found {0} matches {1}", matches, lobbyDoneCallback);
 
         if(lobbyDoneCallback != null){
+            Array<Host> hosts = new Array<>();
             for(int i = 0; i < matches; i++){
                 try{
                     SteamID lobby = smat.getLobbyByIndex(i);
                     Host out = new Host(
                         smat.getLobbyData(lobby, "name"),
-                        "steam:" + SteamNativeHandle.getNativeHandle(lobby),
+                        "steam:" + lobby.handle(),
                         smat.getLobbyData(lobby, "mapname"),
                         Strings.parseInt(smat.getLobbyData(lobby, "wave"), -1),
                         smat.getNumLobbyMembers(lobby),
-                        Strings.parseInt(smat.getLobbyData(lobby, "name"), -1),
+                        Strings.parseInt(smat.getLobbyData(lobby, "version"), -1),
                         smat.getLobbyData(lobby, "versionType"),
                         Gamemode.valueOf(smat.getLobbyData(lobby, "gamemode")),
                         smat.getLobbyMemberLimit(lobby)
                     );
-
-                    lobbyCallback.accept(out);
+                    hosts.add(out);
                 }catch(Exception e){
                     Log.err(e);
                 }
             }
+
+            hosts.sort(Structs.comparingInt(h -> -h.players));
+            hosts.each(lobbyCallback);
 
             lobbyDoneCallback.run();
         }
@@ -344,7 +354,7 @@ public class SNet implements SteamNetworkingCallback, SteamMatchmakingCallback, 
             currentLobby = steamID;
 
             smat.setLobbyData(steamID, "name", player.name);
-            smat.setLobbyData(steamID, "mapname", world.getMap() == null ? "Unknown" : world.getMap().name());
+            smat.setLobbyData(steamID, "mapname", world.getMap() == null ? "Unknown" : state.rules.zone == null ? world.getMap().name() : state.rules.zone.localizedName);
             smat.setLobbyData(steamID, "version", Version.build + "");
             smat.setLobbyData(steamID, "versionType", Version.type);
             smat.setLobbyData(steamID, "wave", state.wave + "");

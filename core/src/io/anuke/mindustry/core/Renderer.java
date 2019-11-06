@@ -2,7 +2,7 @@ package io.anuke.mindustry.core;
 
 import io.anuke.arc.*;
 import io.anuke.arc.files.*;
-import io.anuke.arc.function.*;
+import io.anuke.arc.func.*;
 import io.anuke.arc.graphics.*;
 import io.anuke.arc.graphics.g2d.*;
 import io.anuke.arc.graphics.glutils.*;
@@ -18,12 +18,11 @@ import io.anuke.mindustry.entities.effect.*;
 import io.anuke.mindustry.entities.effect.GroundEffectEntity.*;
 import io.anuke.mindustry.entities.traits.*;
 import io.anuke.mindustry.entities.type.*;
-import io.anuke.mindustry.entities.type.EffectEntity;
-import io.anuke.mindustry.game.EventType.*;
 import io.anuke.mindustry.game.*;
+import io.anuke.mindustry.game.EventType.*;
 import io.anuke.mindustry.graphics.*;
 import io.anuke.mindustry.input.*;
-import io.anuke.mindustry.world.*;
+import io.anuke.mindustry.ui.Cicon;
 import io.anuke.mindustry.world.blocks.defense.ForceProjector.*;
 
 import static io.anuke.arc.Core.*;
@@ -240,6 +239,8 @@ public class Renderer implements ApplicationListener{
         blocks.drawBlocks(Layer.block);
         blocks.drawFog();
 
+        blocks.drawDestroyed();
+
         Draw.shader(Shaders.blockbuild, true);
         blocks.drawBlocks(Layer.placement);
         Draw.shader();
@@ -308,7 +309,7 @@ public class Renderer implements ApplicationListener{
             float fract = landTime / Fx.coreLand.lifetime;
             TileEntity entity = player.getClosestCore();
 
-            TextureRegion reg = entity.block.icon(Block.Icon.full);
+            TextureRegion reg = entity.block.icon(Cicon.full);
             float scl = Scl.scl(4f) / camerascale;
             float s = reg.getWidth() * Draw.scl * scl * 4f * fract;
 
@@ -332,19 +333,19 @@ public class Renderer implements ApplicationListener{
         Draw.color(0, 0, 0, 0.4f);
         float rad = 1.6f;
 
-        Consumer<Unit> draw = u -> {
+        Cons<Unit> draw = u -> {
             float size = Math.max(u.getIconRegion().getWidth(), u.getIconRegion().getHeight()) * Draw.scl;
             Draw.rect("circle-shadow", u.x, u.y, size * rad, size * rad);
         };
 
         for(EntityGroup<? extends BaseUnit> group : unitGroups){
             if(!group.isEmpty()){
-                group.draw(unit -> !unit.isDead(), draw::accept);
+                group.draw(unit -> !unit.isDead(), draw::get);
             }
         }
 
         if(!playerGroup.isEmpty()){
-            playerGroup.draw(unit -> !unit.isDead(), draw::accept);
+            playerGroup.draw(unit -> !unit.isDead(), draw::get);
         }
 
         Draw.color();

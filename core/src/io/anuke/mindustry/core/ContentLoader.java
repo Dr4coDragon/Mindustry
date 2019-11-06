@@ -1,16 +1,18 @@
 package io.anuke.mindustry.core;
 
 import io.anuke.arc.collection.*;
-import io.anuke.arc.function.*;
+import io.anuke.arc.func.*;
 import io.anuke.arc.graphics.*;
 import io.anuke.arc.util.*;
 import io.anuke.mindustry.content.*;
+import io.anuke.mindustry.ctype.*;
 import io.anuke.mindustry.entities.bullet.*;
-import io.anuke.mindustry.game.*;
+import io.anuke.mindustry.mod.Mods.*;
 import io.anuke.mindustry.type.*;
 import io.anuke.mindustry.world.*;
 
 import static io.anuke.arc.Core.files;
+import static io.anuke.mindustry.Vars.mods;
 
 /**
  * Loads all game content.
@@ -22,7 +24,7 @@ public class ContentLoader{
     private ObjectMap<String, MappableContent>[] contentNameMap = new ObjectMap[ContentType.values().length];
     private Array<Content>[] contentMap = new Array[ContentType.values().length];
     private MappableContent[][] temporaryMapper;
-    private ObjectSet<Consumer<Content>> initialization = new ObjectSet<>();
+    private ObjectSet<Cons<Content>> initialization = new ObjectSet<>();
     private ContentList[] content = {
         new Fx(),
         new Items(),
@@ -41,6 +43,14 @@ public class ContentLoader{
         new LegacyColorMapper(),
     };
 
+    /** Clears all initialized content.*/
+    public void clear(){
+        contentNameMap = new ObjectMap[ContentType.values().length];
+        contentMap = new Array[ContentType.values().length];
+        initialization = new ObjectSet<>();
+        loaded = false;
+    }
+
     /** Creates all content types. */
     public void createContent(){
         if(loaded){
@@ -57,20 +67,11 @@ public class ContentLoader{
             list.load();
         }
 
-        for(ContentType type : ContentType.values()){
-
-            for(Content c : contentMap[type.ordinal()]){
-                if(c instanceof MappableContent){
-                    String name = ((MappableContent)c).name;
-                    if(contentNameMap[type.ordinal()].containsKey(name)){
-                        throw new IllegalArgumentException("Two content objects cannot have the same name! (issue: '" + name + "')");
-                    }
-                    contentNameMap[type.ordinal()].put(name, (MappableContent)c);
-                }
-            }
+        if(mods != null){
+            mods.loadContent();
         }
 
-        //set up ID mapping
+        //check up ID mapping, make sure it's linear
         for(Array<Content> arr : contentMap){
             for(int i = 0; i < arr.size; i++){
                 int id = arr.get(i).id;
@@ -104,12 +105,20 @@ public class ContentLoader{
     }
 
     /** Initializes all content with the specified function. */
-    private void initialize(Consumer<Content> callable){
+    private void initialize(Cons<Content> callable){
         if(initialization.contains(callable)) return;
 
         for(ContentType type : ContentType.values()){
             for(Content content : contentMap[type.ordinal()]){
-                callable.accept(content);
+                try{
+                    callable.get(content);
+                }catch(Throwable e){
+                    if(content.mod != null){
+                        mods.handleError(new ModLoadException(content, e), content.mod);
+                    }else{
+                        throw new RuntimeException(e);
+                    }
+                }
             }
         }
 
@@ -138,6 +147,14 @@ public class ContentLoader{
 
     public void handleContent(Content content){
         contentMap[content.getContentType().ordinal()].add(content);
+
+    }
+
+    public void handleMappableContent(MappableContent content){
+        if(contentNameMap[content.getContentType().ordinal()].containsKey(content.name)){
+            throw new IllegalArgumentException("Two content objects cannot have the same name! (issue: '" + content.name + "')");
+        }
+        contentNameMap[content.getContentType().ordinal()].put(content.name, content);
     }
 
     public void setTemporaryMapper(MappableContent[][] temporaryMapper){

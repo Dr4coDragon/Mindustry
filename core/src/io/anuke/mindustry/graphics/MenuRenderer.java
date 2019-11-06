@@ -2,7 +2,7 @@ package io.anuke.mindustry.graphics;
 
 import io.anuke.arc.Core;
 import io.anuke.arc.collection.Array;
-import io.anuke.arc.function.PositionConsumer;
+import io.anuke.arc.func.Floatc2;
 import io.anuke.arc.graphics.Camera;
 import io.anuke.arc.graphics.Color;
 import io.anuke.arc.graphics.g2d.*;
@@ -15,6 +15,7 @@ import io.anuke.arc.util.noise.Simplex;
 import io.anuke.mindustry.content.Blocks;
 import io.anuke.mindustry.content.UnitTypes;
 import io.anuke.mindustry.type.UnitType;
+import io.anuke.mindustry.ui.Cicon;
 import io.anuke.mindustry.world.*;
 import io.anuke.mindustry.world.blocks.Floor;
 import io.anuke.mindustry.world.blocks.OreBlock;
@@ -252,7 +253,9 @@ public class MenuRenderer implements Disposable{
     private void drawFlyers(){
         Draw.color(0f, 0f, 0f, 0.4f);
 
-        float size = Math.max(flyerType.iconRegion.getWidth(), flyerType.iconRegion.getHeight()) * Draw.scl * 1.6f;
+        TextureRegion icon = flyerType.icon(Cicon.full);
+
+        float size = Math.max(icon.getWidth(), icon.getHeight()) * Draw.scl * 1.6f;
 
         flyers((x, y) -> {
             Draw.rect(flyerType.region, x - 12f, y - 13f, flyerRot - 90);
@@ -279,7 +282,7 @@ public class MenuRenderer implements Disposable{
         });
     }
 
-    private void flyers(PositionConsumer cons){
+    private void flyers(Floatc2 cons){
         float tw = width * tilesize * 1f + tilesize;
         float th = height * tilesize * 1f + tilesize;
         float range = 500f;
@@ -288,7 +291,7 @@ public class MenuRenderer implements Disposable{
         for(int i = 0; i < flyers; i++){
             Tmp.v1.trns(flyerRot, time * (2f + flyerType.speed));
 
-            cons.accept((Mathf.randomSeedRange(i, range) + Tmp.v1.x + Mathf.absin(time + Mathf.randomSeedRange(i + 2, 500), 10f, 3.4f) + offset) % (tw + Mathf.randomSeed(i + 5, 0, 500)),
+            cons.get((Mathf.randomSeedRange(i, range) + Tmp.v1.x + Mathf.absin(time + Mathf.randomSeedRange(i + 2, 500), 10f, 3.4f) + offset) % (tw + Mathf.randomSeed(i + 5, 0, 500)),
             (Mathf.randomSeedRange(i + 1, range) + Tmp.v1.y + Mathf.absin(time + Mathf.randomSeedRange(i + 3, 500), 10f, 3.4f) + offset) % th);
         }
     }

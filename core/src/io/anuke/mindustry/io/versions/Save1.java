@@ -1,21 +1,19 @@
 package io.anuke.mindustry.io.versions;
 
-import io.anuke.arc.function.Supplier;
-import io.anuke.mindustry.entities.traits.SaveTrait;
-import io.anuke.mindustry.io.SaveVersion;
+import io.anuke.arc.func.*;
+import io.anuke.mindustry.entities.traits.*;
 
-import java.io.DataInput;
-import java.io.IOException;
+import java.io.*;
 
-public class Save1 extends SaveVersion{
+public class Save1 extends Save2{
 
     public Save1(){
-        super(1);
+        version = 1;
     }
 
     @Override
     public void readEntities(DataInput stream) throws IOException{
-        Supplier[] table = LegacyTypeTable.getTable(lastReadBuild);
+        Prov[] table = LegacyTypeTable.getTable(lastReadBuild);
 
         byte groups = stream.readByte();
 

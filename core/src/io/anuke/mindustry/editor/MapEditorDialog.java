@@ -3,7 +3,7 @@ package io.anuke.mindustry.editor;
 import io.anuke.arc.*;
 import io.anuke.arc.collection.*;
 import io.anuke.arc.files.*;
-import io.anuke.arc.function.*;
+import io.anuke.arc.func.*;
 import io.anuke.arc.graphics.*;
 import io.anuke.arc.graphics.g2d.*;
 import io.anuke.arc.input.*;
@@ -15,6 +15,7 @@ import io.anuke.arc.scene.style.*;
 import io.anuke.arc.scene.ui.*;
 import io.anuke.arc.scene.ui.layout.*;
 import io.anuke.arc.util.*;
+import io.anuke.arc.util.ArcAnnotate.*;
 import io.anuke.mindustry.*;
 import io.anuke.mindustry.content.*;
 import io.anuke.mindustry.core.GameState.*;
@@ -23,7 +24,8 @@ import io.anuke.mindustry.gen.*;
 import io.anuke.mindustry.graphics.*;
 import io.anuke.mindustry.io.*;
 import io.anuke.mindustry.maps.*;
-import io.anuke.mindustry.ui.Styles;
+import io.anuke.mindustry.ui.*;
+import io.anuke.mindustry.ui.Cicon;
 import io.anuke.mindustry.ui.dialogs.*;
 import io.anuke.mindustry.world.*;
 import io.anuke.mindustry.world.blocks.*;
@@ -147,7 +149,19 @@ public class MapEditorDialog extends Dialog implements Disposable{
 
         if(steam){
             menu.cont.addImageTextButton("$editor.publish.workshop", Icon.linkSmall, () -> {
+                Map builtin = maps.all().find(m -> m.name().equals(editor.getTags().get("name", "").trim()));
+
+                if(editor.getTags().containsKey("steamid") && builtin != null && !builtin.custom){
+                    platform.viewListingID(editor.getTags().get("steamid"));
+                    return;
+                }
+
                 Map map = save();
+
+                if(editor.getTags().containsKey("steamid") && map != null){
+                    platform.viewListing(map);
+                    return;
+                }
 
                 if(map == null) return;
 
@@ -161,8 +175,8 @@ public class MapEditorDialog extends Dialog implements Disposable{
                     return;
                 }
 
-                platform.publishMap(map);
-            }).padTop(-3).size(swidth * 2f + 10, 60f).update(b -> b.setText(editor.getTags().containsKey("steamid") ? "$view.workshop" : "$editor.publish.workshop"));
+                platform.publish(map);
+            }).padTop(-3).size(swidth * 2f + 10, 60f).update(b -> b.setText(editor.getTags().containsKey("steamid") ? editor.getTags().get("author").equals(player.name) ? "$workshop.listing" : "$view.workshop" : "$editor.publish.workshop"));
 
             menu.cont.row();
         }
@@ -201,14 +215,6 @@ public class MapEditorDialog extends Dialog implements Disposable{
         update(() -> {
             if(Core.scene.getKeyboardFocus() instanceof Dialog && Core.scene.getKeyboardFocus() != this){
                 return;
-            }
-
-            Vector2 v = pane.stageToLocalCoordinates(Core.input.mouse());
-
-            if(v.x >= 0 && v.y >= 0 && v.x <= pane.getWidth() && v.y <= pane.getHeight()){
-                Core.scene.setScrollFocus(pane);
-            }else{
-                Core.scene.setScrollFocus(null);
             }
 
             if(Core.scene != null && Core.scene.getKeyboardFocus() == this){
@@ -282,7 +288,7 @@ public class MapEditorDialog extends Dialog implements Disposable{
         });
     }
 
-    public Map save(){
+    public @Nullable Map save(){
         boolean isEditor = state.rules.editor;
         state.rules.editor = false;
         String name = editor.getTags().get("name", "").trim();
@@ -419,7 +425,7 @@ public class MapEditorDialog extends Dialog implements Disposable{
                 ButtonGroup<ImageButton> group = new ButtonGroup<>();
                 Table[] lastTable = {null};
 
-                Consumer<EditorTool> addTool = tool -> {
+                Cons<EditorTool> addTool = tool -> {
 
                     ImageButton button = new ImageButton(Core.atlas.drawable("icon-" + tool.name() + "-small"), Styles.clearTogglei);
                     button.clicked(() -> {
@@ -501,14 +507,14 @@ public class MapEditorDialog extends Dialog implements Disposable{
 
                 ImageButton grid = tools.addImageButton(Icon.gridSmall, Styles.clearTogglei, () -> view.setGrid(!view.isGrid())).get();
 
-                addTool.accept(EditorTool.zoom);
+                addTool.get(EditorTool.zoom);
 
                 tools.row();
 
                 ImageButton undo = tools.addImageButton(Icon.undoSmall, Styles.cleari, editor::undo).get();
                 ImageButton redo = tools.addImageButton(Icon.redoSmall, Styles.cleari, editor::redo).get();
 
-                addTool.accept(EditorTool.pick);
+                addTool.get(EditorTool.pick);
 
                 tools.row();
 
@@ -519,14 +525,14 @@ public class MapEditorDialog extends Dialog implements Disposable{
                 redo.update(() -> redo.getImage().setColor(redo.isDisabled() ? Color.gray : Color.white));
                 grid.update(() -> grid.setChecked(view.isGrid()));
 
-                addTool.accept(EditorTool.line);
-                addTool.accept(EditorTool.pencil);
-                addTool.accept(EditorTool.eraser);
+                addTool.get(EditorTool.line);
+                addTool.get(EditorTool.pencil);
+                addTool.get(EditorTool.eraser);
 
                 tools.row();
 
-                addTool.accept(EditorTool.fill);
-                addTool.accept(EditorTool.spray);
+                addTool.get(EditorTool.fill);
+                addTool.get(EditorTool.spray);
 
                 ImageButton rotate = tools.addImageButton(Icon.arrow16Small, Styles.cleari, () -> editor.rotation = (editor.rotation + 1) % 4).get();
                 rotate.getImage().update(() -> {
@@ -676,6 +682,11 @@ public class MapEditorDialog extends Dialog implements Disposable{
         pane = new ScrollPane(content);
         pane.setFadeScrollBars(false);
         pane.setOverscroll(true, false);
+        pane.exited(() -> {
+            if(pane.hasScroll()){
+                Core.scene.setScrollFocus(view);
+            }
+        });
         ButtonGroup<ImageButton> group = new ButtonGroup<>();
 
         int i = 0;
@@ -693,7 +704,7 @@ public class MapEditorDialog extends Dialog implements Disposable{
         });
 
         for(Block block : blocksOut){
-            TextureRegion region = block.icon(Block.Icon.medium);
+            TextureRegion region = block.icon(Cicon.medium);
 
             if(!Core.atlas.isFound(region)) continue;
 
